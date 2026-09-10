@@ -1,0 +1,9 @@
+apiVersion: v2
+name: chronos-engine
+description: Helm chart for Chronos Engine distributed task scheduler
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: Alexandr Motologa
+    url: https://github.com/alexandrmotologa

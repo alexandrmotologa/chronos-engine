@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chronos-postgres
+    environment:
+      POSTGRES_DB: chronos
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chronos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  chronos-node-1:
+    build: .
+    container_name: chronos-node-1
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chronos
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      CHRONOS_NODE_ID: node-alpha-1
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  chronos-node-2:
+    build: .
+    container_name: chronos-node-2
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chronos
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      CHRONOS_NODE_ID: node-beta-2
+      SERVER_PORT: 8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: chronos-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - chronos-node-1
+      - chronos-node-2
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: chronos-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
