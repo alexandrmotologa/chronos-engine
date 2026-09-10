@@ -1,8 +1,28 @@
-# Chronos Engine
+<p align="center">
+  <img src="docs/images/logo.png" alt="Chronos Engine Logo" width="140" style="border-radius: 24px;" />
+</p>
 
-Distributed delayed task and scheduling engine built on Java 21 Virtual Threads, an in-memory timing wheel, and PostgreSQL partition leases.
+<h1 align="center">Chronos Engine</h1>
 
-Chronos Engine executes deferred webhooks, event dispatches, and timeout actions with at-least-once durability and zero duplicate executions under cluster contention.
+<p align="center">
+  <a href="https://github.com/alexandrmotologa/chronos-engine/actions/workflows/ci.yml"><img src="https://github.com/alexandrmotologa/chronos-engine/actions/workflows/ci.yml/badge.svg" alt="Build Status" /></a>
+  <img src="https://img.shields.io/badge/Java-21%20LTS-orange.svg" alt="Java 21" />
+  <img src="https://img.shields.io/badge/Spring%20Boot-3.3.3-brightgreen.svg" alt="Spring Boot" />
+  <img src="https://img.shields.io/badge/Architecture-Hexagonal-blue.svg" alt="Hexagonal Architecture" />
+  <img src="https://img.shields.io/badge/ArchUnit-Enforced-purple.svg" alt="ArchUnit" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" />
+</p>
+
+<p align="center">
+  Distributed delayed task and scheduling engine built on Java 21 Virtual Threads, an in-memory timing wheel, and PostgreSQL partition leases.<br>
+  <em>Because unlike the White Rabbit, your tasks are never late.</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/dashboard-live-overview.png" alt="Chronos Engine Real-Time Live Dashboard" />
+</p>
+
+---
 
 ```
                   +-----------------------------------+
@@ -71,6 +91,14 @@ Read [docs/architecture.md](docs/architecture.md) for module boundaries and [doc
 - **Idempotency Keys**: Prevents duplicate scheduling on client retries.
 - **Dead Letter Queue with Redrive**: Inspect failed executions and re-queue tasks through the REST API.
 
+## Live Dashboard & Operations Console
+
+Open `http://localhost:8080/dashboard` in your browser to monitor cluster health, observe the 256-partition shard distribution, track timer drift, inspect upcoming dispatches on the interactive SVG Gantt timeline, and trigger immediate task actions.
+
+<p align="center">
+  <img src="docs/images/dashboard-operations-console.png" alt="Chronos Engine Operations Console & Live SSE Event Stream" />
+</p>
+
 ## Requirements
 
 - Java 21 LTS
@@ -101,6 +129,12 @@ java -jar target/chronos-engine-0.1.0-SNAPSHOT.jar
 
 Flyway executes database migrations automatically on application startup.
 
+For standalone local experimentation with zero external database setup, run with the in-memory profile:
+
+```bash
+java "-Dspring.profiles.active=local" -jar target/chronos-engine-0.1.0-SNAPSHOT.jar
+```
+
 ### 3. Schedule a delayed webhook
 
 Schedule a webhook to fire in 30 seconds:
@@ -124,9 +158,28 @@ curl -X POST http://localhost:8080/api/v1/tasks \
   }'
 ```
 
-### 4. View live execution dashboard
+### 4. Bulk schedule tasks
 
-Open `http://localhost:8080/dashboard` in a web browser to watch the interactive Gantt chart, 256-partition shard distribution, active tasks, and timer accuracy in real time.
+```bash
+curl -X POST http://localhost:8080/api/v1/tasks/bulk \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tasks": [
+      {
+        "target": "https://api.merchant.com/v1/orders/1/expire",
+        "scheduledTime": "'$(date -u -d "+15 seconds" +"%Y-%m-%dT%H:%M:%SZ")'",
+        "payload": "{\"orderId\": 1}",
+        "tags": ["bulk-batch", "orders"]
+      },
+      {
+        "target": "https://api.merchant.com/v1/orders/2/expire",
+        "scheduledTime": "'$(date -u -d "+30 seconds" +"%Y-%m-%dT%H:%M:%SZ")'",
+        "payload": "{\"orderId\": 2}",
+        "tags": ["bulk-batch", "orders"]
+      }
+    ]
+  }'
+```
 
 ## Configuration Options
 
