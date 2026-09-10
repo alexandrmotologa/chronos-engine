@@ -29,13 +29,28 @@ public class HttpWebhookDispatcher {
                 .build();
     }
 
+    private final Map<String, HostCircuitState> hostCircuits = new java.util.concurrent.ConcurrentHashMap<>();
+
     public DispatchResult dispatch(Task task) {
         long startTime = System.currentTimeMillis();
         String targetUrl = task.getPayload().target();
 
         try {
+            URI uri = URI.create(targetUrl);
+            String host = uri.getHost();
+
+            // Check host circuit state
+            if (host != null) {
+                HostCircuitState circuit = hostCircuits.computeIfAbsent(host, k -> new HostCircuitState());
+                if (circuit.isCircuitOpen(startTime)) {
+                    int durationMs = (int) (System.currentTimeMillis() - startTime);
+                    log.warn("Circuit open for host {}; shedding load for task {}", host, task.getId());
+                    return DispatchResult.failure(429, "Adaptive backpressure: circuit open for host " + host, durationMs);
+                }
+            }
+
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(targetUrl))
+                    .uri(uri)
                     .timeout(Duration.ofSeconds(10))
                     .header("Content-Type", "application/json")
                     .header("User-Agent", "Chronos-Engine/1.0");
@@ -52,10 +67,16 @@ public class HttpWebhookDispatcher {
             int durationMs = (int) (System.currentTimeMillis() - startTime);
 
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                if (host != null) {
+                    hostCircuits.get(host).recordSuccess();
+                }
                 log.info("Webhook dispatch succeeded for task {} to {} (status: {}, duration: {}ms)",
                         task.getId(), targetUrl, response.statusCode(), durationMs);
                 return DispatchResult.success(response.statusCode(), response.body(), durationMs);
             } else {
+                if (host != null && (response.statusCode() == 429 || response.statusCode() >= 500)) {
+                    hostCircuits.get(host).recordFailure();
+                }
                 log.warn("Webhook dispatch received non-2xx status {} for task {} from {}",
                         response.statusCode(), task.getId(), targetUrl);
                 return DispatchResult.failure(response.statusCode(), "HTTP " + response.statusCode() + ": " + response.body(), durationMs);
@@ -64,6 +85,27 @@ public class HttpWebhookDispatcher {
             int durationMs = (int) (System.currentTimeMillis() - startTime);
             log.error("Webhook dispatch failed for task {} to {}: {}", task.getId(), targetUrl, e.getMessage());
             return DispatchResult.failure("Execution failed: " + e.getMessage(), durationMs);
+        }
+    }
+
+    private static final class HostCircuitState {
+        private final java.util.concurrent.atomic.AtomicInteger consecutiveFailures = new java.util.concurrent.atomic.AtomicInteger(0);
+        private volatile long circuitOpenUntilMs = 0;
+
+        boolean isCircuitOpen(long nowMs) {
+            return nowMs < circuitOpenUntilMs;
+        }
+
+        void recordSuccess() {
+            consecutiveFailures.set(0);
+            circuitOpenUntilMs = 0;
+        }
+
+        void recordFailure() {
+            int failures = consecutiveFailures.incrementAndGet();
+            if (failures >= 5) {
+                circuitOpenUntilMs = System.currentTimeMillis() + 10000L; // 10s cooldown
+            }
         }
     }
 }
