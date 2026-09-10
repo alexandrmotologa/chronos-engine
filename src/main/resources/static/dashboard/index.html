@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronos Engine — Live Task Visualizer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="brand">
+        <div class="brand-icon">C</div>
+        <div class="brand-title">
+          <h1>Chronos Engine</h1>
+          <span id="node-badge">Worker Node: initializing...</span>
+        </div>
+      </div>
+      <div class="header-status">
+        <div class="status-pill" id="connection-pill">
+          <span class="pulse-dot"></span>
+          <span id="connection-text">Live SSE Connected</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- KPI Metric Cards -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <span class="metric-label">Pending Timeouts</span>
+        <span class="metric-value" id="kpi-pending">0</span>
+        <span class="metric-caption">In-memory timing wheel</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Average Drift</span>
+        <span class="metric-value" id="kpi-drift">0.0 ms</span>
+        <span class="metric-caption">Target tick accuracy</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Active Partitions</span>
+        <span class="metric-value" id="kpi-partitions">0</span>
+        <span class="metric-caption">Held by this node</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Dead Letters</span>
+        <span class="metric-value" id="kpi-deadletters" style="color: var(--accent-red);">0</span>
+        <span class="metric-caption">Awaiting manual redrive</span>
+      </div>
+    </section>
+
+    <!-- Two-column: Scheduler & Live Feed -->
+    <div class="dashboard-grid">
+      
+      <!-- Panel: Schedule Task -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Schedule Delayed Task</h2>
+        </div>
+        <form class="schedule-form" id="schedule-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="delay-sec">Delay (seconds)</label>
+              <input type="number" id="delay-sec" class="form-control" value="10" min="1" required>
+            </div>
+            <div class="form-group">
+              <label for="task-type">Task Type</label>
+              <select id="task-type" class="form-control">
+                <option value="WEBHOOK">HTTP Webhook</option>
+                <option value="KAFKA">Kafka Topic</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="target-url">Target Endpoint or Topic</label>
+            <input type="text" id="target-url" class="form-control" value="https://httpbin.org/post" required>
+          </div>
+
+          <div class="form-group">
+            <label for="idempotency-key">Idempotency Key (Optional)</label>
+            <input type="text" id="idempotency-key" class="form-control" placeholder="e.g. order-exp-4589">
+          </div>
+
+          <div class="form-group">
+            <label for="task-payload">Payload (JSON)</label>
+            <textarea id="task-payload" class="form-control" rows="3">{"event":"ORDER_TIMEOUT","orderId":4589}</textarea>
+          </div>
+
+          <button type="submit" class="btn" id="btn-submit">Enqueue Delayed Task</button>
+        </form>
+      </section>
+
+      <!-- Panel: Live SSE Events Feed -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Real-Time Lifecycle Stream</h2>
+          <button class="btn btn-secondary" id="btn-clear-feed" style="font-size: 11px; padding: 4px 10px;">Clear</button>
+        </div>
+        <div class="event-feed" id="event-feed">
+          <div class="event-item" style="color: var(--text-muted);">
+            Listening for live task events over Server-Sent Events...
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Dead Letter Queue Section -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Dead Letter Queue (DLQ) Console</h2>
+        <button class="btn btn-secondary" id="btn-refresh-dlq" style="font-size: 12px;">Refresh</button>
+      </div>
+      <div class="dlq-table-container">
+        <table class="dlq-table">
+          <thead>
+            <tr>
+              <th>Task ID</th>
+              <th>Target</th>
+              <th>Retries</th>
+              <th>Created</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="dlq-tbody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted);">No failed tasks in dead letter queue.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
