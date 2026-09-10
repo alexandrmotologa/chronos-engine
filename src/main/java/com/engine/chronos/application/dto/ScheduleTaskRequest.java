@@ -6,7 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 public record ScheduleTaskRequest(
         String idempotencyKey,
@@ -18,8 +20,22 @@ public record ScheduleTaskRequest(
         @NotNull(message = "scheduledTime is required")
         Instant scheduledTime,
         String cronExpression,
-        RetryPolicyConfig retryPolicy
+        RetryPolicyConfig retryPolicy,
+        Set<String> tags
 ) {
+    public ScheduleTaskRequest(
+            String idempotencyKey,
+            TaskType type,
+            String target,
+            Map<String, String> headers,
+            String payload,
+            Instant scheduledTime,
+            String cronExpression,
+            RetryPolicyConfig retryPolicy
+    ) {
+        this(idempotencyKey, type, target, headers, payload, scheduledTime, cronExpression, retryPolicy, Collections.emptySet());
+    }
+
     public ScheduleTaskCommand toCommand() {
         return new ScheduleTaskCommand(
                 idempotencyKey,
@@ -29,7 +45,8 @@ public record ScheduleTaskRequest(
                 payload != null ? payload : "",
                 scheduledTime,
                 cronExpression,
-                retryPolicy != null ? retryPolicy.toDomain() : null
+                retryPolicy != null ? retryPolicy.toDomain() : null,
+                tags != null ? tags : Collections.emptySet()
         );
     }
 }

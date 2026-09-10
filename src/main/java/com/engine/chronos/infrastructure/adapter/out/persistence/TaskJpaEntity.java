@@ -71,6 +71,9 @@ public class TaskJpaEntity {
     @Column(name = "lease_expires_at")
     private Instant leaseExpiresAt;
 
+    @Column(columnDefinition = "TEXT")
+    private String tags;
+
     @Version
     @Column(nullable = false)
     private Long version;
@@ -108,6 +111,7 @@ public class TaskJpaEntity {
         entity.multiplier = task.getRetryPolicy().multiplier();
         entity.jitterFactor = task.getRetryPolicy().jitterFactor();
         entity.retryCount = task.getRetryCount();
+        entity.tags = task.getTags().isEmpty() ? null : String.join(",", task.getTags());
 
         if (task.getCurrentLease() != null) {
             entity.leaseOwner = task.getCurrentLease().nodeOwner();
@@ -136,6 +140,10 @@ public class TaskJpaEntity {
             lease = new ExecutionLease(leaseOwner, updatedAt, leaseExpiresAt);
         }
 
+        java.util.Set<String> tagSet = (tags != null && !tags.isBlank())
+                ? java.util.Set.of(tags.split(","))
+                : Collections.emptySet();
+
         return Task.reconstitute(
                 TaskId.of(id),
                 idempotencyKey,
@@ -148,6 +156,7 @@ public class TaskJpaEntity {
                 retryCount,
                 lease,
                 version,
+                tagSet,
                 createdAt,
                 updatedAt
         );
@@ -172,6 +181,8 @@ public class TaskJpaEntity {
     public int getRetryCount() { return retryCount; }
     public String getLeaseOwner() { return leaseOwner; }
     public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public String getTags() { return tags; }
+    public void setTags(String tags) { this.tags = tags; }
     public Long getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

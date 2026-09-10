@@ -39,4 +39,6 @@ public interface SpringDataTaskRepository extends JpaRepository<TaskJpaEntity, U
             Instant to,
             Pageable pageable
     );
+
+    List<TaskJpaEntity> findByTagsContaining(String tag);
 }

@@ -7,6 +7,7 @@ import com.engine.chronos.domain.model.TaskType;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public record TaskResponse(
@@ -21,6 +22,7 @@ public record TaskResponse(
         int maxAttempts,
         String leaseOwner,
         Instant leaseExpiresAt,
+        Set<String> tags,
         Instant createdAt,
         Instant updatedAt,
         List<TaskExecutionResponse> executions
@@ -38,6 +40,7 @@ public record TaskResponse(
                 task.getRetryPolicy().maxAttempts(),
                 task.getCurrentLease() != null ? task.getCurrentLease().nodeOwner() : null,
                 task.getCurrentLease() != null ? task.getCurrentLease().expiresAt() : null,
+                task.getTags(),
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
                 executions != null ? executions : Collections.emptyList()

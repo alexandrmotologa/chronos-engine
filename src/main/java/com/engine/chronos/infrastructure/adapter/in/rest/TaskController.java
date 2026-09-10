@@ -1,7 +1,6 @@
 package com.engine.chronos.infrastructure.adapter.in.rest;
 
-import com.engine.chronos.application.dto.ScheduleTaskRequest;
-import com.engine.chronos.application.dto.TaskResponse;
+import com.engine.chronos.application.dto.*;
 import com.engine.chronos.application.service.TaskCommandService;
 import com.engine.chronos.application.service.TaskQueryService;
 import com.engine.chronos.domain.exception.TaskNotFoundException;
@@ -14,12 +13,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
-@Tag(name = "Tasks", description = "Schedule, inspect, cancel, and manually trigger delayed tasks")
+@Tag(name = "Tasks", description = "Schedule, inspect, cancel, and control delayed tasks")
 public class TaskController {
 
     private final TaskCommandService commandService;
@@ -48,7 +48,8 @@ public class TaskController {
                 request.payload(),
                 request.scheduledTime(),
                 request.cronExpression(),
-                request.retryPolicy() != null ? request.retryPolicy().toDomain() : null
+                request.retryPolicy() != null ? request.retryPolicy().toDomain() : null,
+                request.tags()
         );
 
         TaskId id = commandService.schedule(command);
@@ -58,6 +59,24 @@ public class TaskController {
                 "id", id.value(),
                 "status", "SCHEDULED",
                 "location", location.toString()
+        ));
+    }
+
+    @PostMapping("/bulk")
+    @Operation(summary = "Schedule multiple tasks atomically in a single batch")
+    public ResponseEntity<BulkScheduleResponse> scheduleBulk(@Valid @RequestBody BulkScheduleTaskRequest bulkRequest) {
+        List<ScheduleTaskCommand> commands = bulkRequest.tasks().stream()
+                .map(ScheduleTaskRequest::toCommand)
+                .toList();
+
+        List<TaskId> ids = commandService.scheduleBulk(commands);
+        List<UUID> uuidList = ids.stream().map(TaskId::value).toList();
+
+        return ResponseEntity.ok(new BulkScheduleResponse(
+                bulkRequest.tasks().size(),
+                ids.size(),
+                uuidList,
+                List.of()
         ));
     }
 
@@ -81,5 +100,55 @@ public class TaskController {
     public ResponseEntity<Void> fireNow(@PathVariable UUID id) {
         commandService.fireNow(TaskId.of(id));
         return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/{id}/reschedule")
+    @Operation(summary = "Reschedule a task to a new target execution time")
+    public ResponseEntity<Void> rescheduleTask(
+            @PathVariable UUID id,
+            @Valid @RequestBody RescheduleTaskRequest request
+    ) {
+        commandService.reschedule(TaskId.of(id), request.newScheduledTime());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/pause")
+    @Operation(summary = "Pause a scheduled task")
+    public ResponseEntity<Void> pauseTask(@PathVariable UUID id) {
+        commandService.pause(TaskId.of(id));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/resume")
+    @Operation(summary = "Resume a paused task")
+    public ResponseEntity<Void> resumeTask(@PathVariable UUID id) {
+        commandService.resume(TaskId.of(id));
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping
+    @Operation(summary = "Query tasks by tag")
+    public ResponseEntity<List<TaskResponse>> getTasks(@RequestParam(value = "tag", required = false) String tag) {
+        if (tag != null && !tag.isBlank()) {
+            return ResponseEntity.ok(queryService.getTasksByTag(tag));
+        }
+        return ResponseEntity.ok(List.of());
+    }
+
+    @GetMapping("/timeline")
+    @Operation(summary = "Get upcoming tasks for Gantt timeline visualization")
+    public ResponseEntity<List<TaskResponse>> getTimeline(
+            @RequestParam(value = "windowSec", defaultValue = "60") int windowSec
+    ) {
+        java.time.Instant now = java.time.Instant.now();
+        java.time.Instant horizon = now.plusSeconds(windowSec);
+        return ResponseEntity.ok(queryService.getUpcomingTasks(now, horizon, 50));
+    }
+
+    @DeleteMapping
+    @Operation(summary = "Cancel tasks matching a tag")
+    public ResponseEntity<CancelByTagResponse> cancelByTag(@RequestParam("tag") String tag) {
+        int cancelled = commandService.cancelByTag(tag);
+        return ResponseEntity.ok(new CancelByTagResponse(tag, cancelled));
     }
 }

@@ -34,7 +34,7 @@ Chronos Engine executes deferred webhooks, event dispatches, and timeout actions
   +--------------------+                         +--------------------+
 ```
 
-## Problem statement
+## Problem Statement
 
 Distributed systems often need tasks executed at an exact future time:
 - Expiring checkout reservations after fifteen minutes.
@@ -55,15 +55,21 @@ Chronos follows strict Hexagonal Architecture (Ports and Adapters):
 
 Read [docs/architecture.md](docs/architecture.md) for module boundaries and [docs/state_machine.md](docs/state_machine.md) for the complete task lifecycle.
 
-## Features
+## Enterprise Features
 
 - **Java 21 Virtual Threads**: Millions of concurrent delayed callbacks without OS thread exhaustion.
-- **Hashed wheel timer**: O(1) task scheduling and bucket traversal.
-- **Distributed partition leases**: 256 virtual buckets balanced across active cluster instances.
-- **Automatic failover**: Orphan harvester reclaims tasks within ten seconds if a node crashes.
-- **Idempotency keys**: Prevents duplicate scheduling on client retries.
-- **Dead letter queue with redrive**: Inspect failed executions and re-queue tasks through the REST API.
-- **Embedded live dashboard**: Real-time Gantt timeline and cluster status rendered via Server-Sent Events at `/dashboard`.
+- **Hashed Wheel Timer**: O(1) task scheduling and bucket traversal.
+- **Distributed Partition Leases**: 256 virtual buckets balanced across active cluster instances.
+- **HMAC Webhook Signatures**: Outgoing webhooks are signed using HMAC-SHA256 (`X-Chronos-Signature`, `X-Chronos-Timestamp`) to prevent payload tampering and replay attacks.
+- **W3C Distributed Tracing**: Generates and propagates standard W3C `traceparent` headers across all dispatched tasks for end-to-end trace correlation with OpenTelemetry and Datadog.
+- **Bulk Scheduling API**: Ingest batches of tasks atomically in a single transaction via `POST /api/v1/tasks/bulk`.
+- **Operational Controls**: Reschedule, pause, and resume tasks on the fly via dedicated endpoints (`/reschedule`, `/pause`, `/resume`).
+- **Multi-Tenancy & Tag-Based Cancellation**: Tag tasks with customer or business categories, query by tag, and cancel all tasks under a tag in one call (`DELETE /api/v1/tasks?tag=...`).
+- **Transactional Outbox Engine**: Microservices can insert tasks directly into the `chronos_outbox` table within their own business transactions, and Chronos ingests them with zero message loss.
+- **Interactive SVG Gantt & Shard Visualizer**: Real-time Gantt timeline for upcoming 60-second executions and a 256-partition shard heatmap rendered via Server-Sent Events at `/dashboard`.
+- **Automatic Failover**: Orphan harvester reclaims tasks within ten seconds if a node crashes.
+- **Idempotency Keys**: Prevents duplicate scheduling on client retries.
+- **Dead Letter Queue with Redrive**: Inspect failed executions and re-queue tasks through the REST API.
 
 ## Requirements
 
@@ -108,6 +114,7 @@ curl -X POST http://localhost:8080/api/v1/tasks \
     "type": "WEBHOOK",
     "target": "https://api.example.com/webhooks/orders",
     "payload": "{\"orderId\": 9821, \"action\": \"EXPIRE\"}",
+    "tags": ["orders", "billing"],
     "retryPolicy": {
       "maxAttempts": 3,
       "initialIntervalMs": 1000,
@@ -119,9 +126,9 @@ curl -X POST http://localhost:8080/api/v1/tasks \
 
 ### 4. View live execution dashboard
 
-Open `http://localhost:8080/dashboard` in a web browser to watch the task stream, active node assignments, and timer accuracy in real time.
+Open `http://localhost:8080/dashboard` in a web browser to watch the interactive Gantt chart, 256-partition shard distribution, active tasks, and timer accuracy in real time.
 
-## Configuration options
+## Configuration Options
 
 Configure Chronos via `application.yml` or environment variables:
 
@@ -133,19 +140,15 @@ Configure Chronos via `application.yml` or environment variables:
 | `chronos.timer.tick-duration-ms` | `100` | Duration of each wheel tick in milliseconds |
 | `chronos.timer.wheel-size` | `512` | Number of buckets in the circular wheel |
 | `chronos.worker.batch-size` | `200` | Tasks fetched per database lease round |
+| `chronos.dispatcher.http.signing-secret` | Empty | Shared secret for generating HMAC-SHA256 signatures |
+| `chronos.outbox.poll-interval-ms` | `500` | Frequency in milliseconds for polling pending outbox entries |
 
-## Testing and verification
+## Testing and Verification
 
-Run unit and architectural rule tests:
+Run unit, architectural rule, and enterprise tests:
 
 ```bash
 mvn test
-```
-
-Run end-to-end integration tests using Testcontainers:
-
-```bash
-mvn verify -Dtest=*IntegrationTest
 ```
 
 ## License

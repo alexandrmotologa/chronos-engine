@@ -10,6 +10,8 @@ import com.engine.chronos.infrastructure.adapter.out.persistence.SpringDataTaskE
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,5 +57,19 @@ public class TaskQueryService implements GetTaskQuery {
 
             return TaskResponse.from(task, executions);
         });
+    }
+
+    public List<TaskResponse> getTasksByTag(String tag) {
+        return taskRepository.findByTag(tag)
+                .stream()
+                .map(t -> TaskResponse.from(t, Collections.emptyList()))
+                .toList();
+    }
+
+    public List<TaskResponse> getUpcomingTasks(Instant from, Instant to, int limit) {
+        return taskRepository.findUpcomingTasks(from, to, limit)
+                .stream()
+                .map(t -> TaskResponse.from(t, Collections.emptyList()))
+                .toList();
     }
 }

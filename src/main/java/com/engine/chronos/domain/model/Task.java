@@ -20,6 +20,7 @@ public class Task implements Serializable {
     private final TaskPayload payload;
     private final RetryPolicy retryPolicy;
     private final Instant createdAt;
+    private final java.util.Set<String> tags;
 
     private ScheduleRule scheduleRule;
     private TaskStatus status;
@@ -42,6 +43,7 @@ public class Task implements Serializable {
             int retryCount,
             ExecutionLease currentLease,
             Long version,
+            java.util.Set<String> tags,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -56,6 +58,7 @@ public class Task implements Serializable {
         this.retryCount = retryCount;
         this.currentLease = currentLease;
         this.version = version;
+        this.tags = tags != null ? new java.util.HashSet<>(tags) : new java.util.HashSet<>();
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
     }
@@ -67,6 +70,19 @@ public class Task implements Serializable {
             ScheduleRule scheduleRule,
             TaskPayload payload,
             RetryPolicy retryPolicy,
+            Instant now
+    ) {
+        return create(id, idempotencyKey, type, scheduleRule, payload, retryPolicy, java.util.Collections.emptySet(), now);
+    }
+
+    public static Task create(
+            TaskId id,
+            String idempotencyKey,
+            TaskType type,
+            ScheduleRule scheduleRule,
+            TaskPayload payload,
+            RetryPolicy retryPolicy,
+            java.util.Set<String> tags,
             Instant now
     ) {
         Objects.requireNonNull(id, "id must not be null");
@@ -93,6 +109,7 @@ public class Task implements Serializable {
                 0,
                 null,
                 null,
+                tags,
                 now,
                 now
         );
@@ -116,6 +133,25 @@ public class Task implements Serializable {
             Instant createdAt,
             Instant updatedAt
     ) {
+        return reconstitute(id, idempotencyKey, partitionBucket, type, scheduleRule, payload, retryPolicy, status, retryCount, currentLease, version, java.util.Collections.emptySet(), createdAt, updatedAt);
+    }
+
+    public static Task reconstitute(
+            TaskId id,
+            String idempotencyKey,
+            int partitionBucket,
+            TaskType type,
+            ScheduleRule scheduleRule,
+            TaskPayload payload,
+            RetryPolicy retryPolicy,
+            TaskStatus status,
+            int retryCount,
+            ExecutionLease currentLease,
+            Long version,
+            java.util.Set<String> tags,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
         return new Task(
                 id,
                 idempotencyKey,
@@ -128,6 +164,7 @@ public class Task implements Serializable {
                 retryCount,
                 currentLease,
                 version,
+                tags,
                 createdAt,
                 updatedAt
         );
@@ -255,6 +292,51 @@ public class Task implements Serializable {
         this.updatedAt = now;
     }
 
+    public void reschedule(Instant newScheduledTime, Instant now) {
+        Objects.requireNonNull(newScheduledTime, "newScheduledTime must not be null");
+        Objects.requireNonNull(now, "now must not be null");
+
+        if (status.isTerminal()) {
+            throw new IllegalTaskStateException(id, status, "reschedule");
+        }
+
+        this.scheduleRule = ScheduleRule.at(newScheduledTime);
+        this.currentLease = null;
+        if (status == TaskStatus.ACQUIRED) {
+            this.status = TaskStatus.SCHEDULED;
+        }
+        this.updatedAt = now;
+
+        recordEvent(new TaskRescheduledEvent(id, newScheduledTime, now));
+    }
+
+    public void pause(Instant now) {
+        Objects.requireNonNull(now, "now must not be null");
+
+        if (!status.isPausable()) {
+            throw new IllegalTaskStateException(id, status, "pause");
+        }
+
+        this.status = TaskStatus.PAUSED;
+        this.currentLease = null;
+        this.updatedAt = now;
+
+        recordEvent(new TaskPausedEvent(id, now));
+    }
+
+    public void resume(Instant now) {
+        Objects.requireNonNull(now, "now must not be null");
+
+        if (status != TaskStatus.PAUSED) {
+            throw new IllegalTaskStateException(id, status, "resume");
+        }
+
+        this.status = TaskStatus.SCHEDULED;
+        this.updatedAt = now;
+
+        recordEvent(new TaskResumedEvent(id, now));
+    }
+
     public void fireNow(Instant now) {
         Objects.requireNonNull(now, "now must not be null");
         if (!status.isEligibleForAcquisition()) {
@@ -286,6 +368,7 @@ public class Task implements Serializable {
     public int getRetryCount() { return retryCount; }
     public ExecutionLease getCurrentLease() { return currentLease; }
     public Long getVersion() { return version; }
+    public java.util.Set<String> getTags() { return Collections.unmodifiableSet(tags); }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

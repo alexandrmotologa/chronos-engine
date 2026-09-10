@@ -29,6 +29,9 @@ public class HttpWebhookDispatcher {
                 .build();
     }
 
+    @org.springframework.beans.factory.annotation.Value("${chronos.security.webhook-signing-secret:}")
+    private String defaultSigningSecret;
+
     private final Map<String, HostCircuitState> hostCircuits = new java.util.concurrent.ConcurrentHashMap<>();
 
     public DispatchResult dispatch(Task task) {
@@ -57,6 +60,23 @@ public class HttpWebhookDispatcher {
 
             for (Map.Entry<String, String> header : task.getPayload().headers().entrySet()) {
                 requestBuilder.header(header.getKey(), header.getValue());
+            }
+
+            // W3C TraceContext injection
+            String existingTrace = task.getPayload().headers().get(com.engine.chronos.infrastructure.config.W3CTraceContext.TRACEPARENT_HEADER);
+            String traceparent = com.engine.chronos.infrastructure.config.W3CTraceContext.createChildTraceparent(existingTrace);
+            requestBuilder.header(com.engine.chronos.infrastructure.config.W3CTraceContext.TRACEPARENT_HEADER, traceparent);
+
+            // Webhook HMAC signature injection
+            String signingSecret = task.getPayload().headers().getOrDefault("X-Chronos-Secret", defaultSigningSecret);
+            if (signingSecret != null && !signingSecret.isBlank()) {
+                long nowSec = System.currentTimeMillis() / 1000L;
+                String signatureHeader = com.engine.chronos.infrastructure.adapter.out.dispatcher.security.HmacSigner.createHeader(
+                        signingSecret,
+                        task.getPayload().body(),
+                        nowSec
+                );
+                requestBuilder.header("X-Chronos-Signature", signatureHeader);
             }
 
             HttpRequest request = requestBuilder

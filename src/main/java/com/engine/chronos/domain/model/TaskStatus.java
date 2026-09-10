@@ -7,7 +7,8 @@ public enum TaskStatus {
     COMPLETED,
     RETRY_PENDING,
     DEAD_LETTER,
-    CANCELLED;
+    CANCELLED,
+    PAUSED;
 
     public boolean isTerminal() {
         return this == COMPLETED || this == DEAD_LETTER || this == CANCELLED;
@@ -18,6 +19,10 @@ public enum TaskStatus {
     }
 
     public boolean isCancellable() {
+        return this == SCHEDULED || this == RETRY_PENDING || this == PAUSED;
+    }
+
+    public boolean isPausable() {
         return this == SCHEDULED || this == RETRY_PENDING;
     }
 }

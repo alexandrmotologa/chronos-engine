@@ -23,5 +23,11 @@ public interface TaskRepositoryPort {
 
     long countDeadLetters();
 
+    List<Task> saveAll(List<Task> tasks);
+
     List<Task> findUpcomingTasks(Instant from, Instant to, int limit);
+
+    List<Task> findByTag(String tag);
+
+    int cancelByTag(String tag, Instant now);
 }

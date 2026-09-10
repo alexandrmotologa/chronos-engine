@@ -74,4 +74,41 @@ public class TaskRepositoryAdapter implements TaskRepositoryPort {
                 .map(TaskJpaEntity::toDomain)
                 .toList();
     }
+
+    @Override
+    @Transactional
+    public List<Task> saveAll(List<Task> tasks) {
+        List<TaskJpaEntity> entities = tasks.stream().map(TaskJpaEntity::fromDomain).toList();
+        return taskRepository.saveAllAndFlush(entities)
+                .stream()
+                .map(TaskJpaEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Task> findByTag(String tag) {
+        return taskRepository.findByTagsContaining(tag)
+                .stream()
+                .map(TaskJpaEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public int cancelByTag(String tag, Instant now) {
+        List<TaskJpaEntity> entities = taskRepository.findByTagsContaining(tag);
+        int count = 0;
+        for (TaskJpaEntity entity : entities) {
+            Task domain = entity.toDomain();
+            if (domain.getStatus().isCancellable()) {
+                domain.cancel(now);
+                taskRepository.save(TaskJpaEntity.fromDomain(domain));
+                count++;
+            }
+        }
+        if (count > 0) {
+            taskRepository.flush();
+        }
+        return count;
+    }
 }

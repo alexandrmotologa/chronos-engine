@@ -68,6 +68,7 @@ class DeadLetterControllerTest {
                 3,
                 null,
                 null,
+                java.util.Collections.emptySet(),
                 Instant.now(),
                 Instant.now(),
                 Collections.emptyList()
