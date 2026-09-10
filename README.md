@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/logo.png" alt="Chronos Engine Logo" width="130" style="border-radius: 28px;" />
+</p>
+
 <h1 align="center">Chronos Engine</h1>
 
 <p align="center">
