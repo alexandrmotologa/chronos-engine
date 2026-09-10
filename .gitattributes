@@ -1,0 +1,18 @@
+# Auto detect text files and normalize line endings
+* text=auto
+
+# Source code
+*.java text diff=java eol=lf
+*.xml text eol=lf
+*.sql text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.properties text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
