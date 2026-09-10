@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: chronos-engine-test
+  datasource:
+    url: jdbc:h2:mem:chronos_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+chronos:
+  cluster:
+    node-id: test-node-1
+    heartbeat-interval-ms: 1000
+    lease-duration-ms: 5000
+  timer:
+    tick-duration-ms: 50
+    wheel-size: 64
+  worker:
+    enabled: false

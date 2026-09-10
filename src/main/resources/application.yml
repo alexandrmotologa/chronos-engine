@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: chronos-engine
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/chronos}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+chronos:
+  cluster:
+    node-id: ${CHRONOS_NODE_ID:node-${random.uuid}}
+    heartbeat-interval-ms: 3000
+    lease-duration-ms: 10000
+    orphan-harvest-interval-ms: 5000
+  timer:
+    tick-duration-ms: 100
+    wheel-size: 512
+  worker:
+    enabled: true
+    batch-size: 200
+    poll-interval-ms: 1000
+    lookahead-window-seconds: 30
