@@ -20,7 +20,7 @@ WORKDIR /app
 RUN addgroup -S chronos && adduser -S chronos -G chronos
 USER chronos:chronos
 
-COPY --from=builder /workspace/target/chronos-engine-0.1.0-SNAPSHOT.jar /app/chronos-engine.jar
+COPY --from=builder /workspace/target/chronos-engine*.jar /app/chronos-engine.jar
 
 EXPOSE 8080
 

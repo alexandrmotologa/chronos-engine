@@ -19,8 +19,20 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/dashboard-live-overview.png" alt="Chronos Engine Real-Time Live Dashboard" />
+  <img src="docs/images/chronos-engine_demo.gif" alt="Chronos Engine Interactive Demo" width="850" style="border-radius: 10px; border: 1px solid #1e293b;" />
 </p>
+
+## Screenshots
+
+<details open>
+<summary><strong>Expand interface gallery</strong></summary>
+<br/>
+
+| Live Dashboard & Shard Distribution | Operations Console & Event Stream |
+| :---: | :---: |
+| ![Live Dashboard Overview](docs/images/dashboard-live-overview.png) | ![Operations Console](docs/images/dashboard-operations-console.png) |
+
+</details>
 
 ---
 
